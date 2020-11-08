@@ -1,0 +1,86 @@
+version: "3.3"
+services:
+    elasticsearch:
+        image: docker.elastic.co/elasticsearch/elasticsearch:7.9.2
+        container_name: elasticsearch
+        volumes:
+            - type: bind
+              source: ./elasticsearch/elasticsearch.yml
+              target: /usr/share/elasticsearch/config/elasticsearch.yml
+              read_only: true
+            - type: volume
+              source: elasticsearch
+              target: /usr/share/elasticsearch/data
+        environment:
+            ES_JAVA_OPTS: "-Xmx256m -Xms256m"
+            ELASTIC_PASSWORD: changeme
+            discovery.type: single-node
+        ports:
+            - 9200:9200
+            - 9300:9300
+        networks:
+            - elknetwork
+    kibana:
+        image: docker.elastic.co/kibana/kibana:7.9.2
+        container_name: kibana
+        ports:
+            - 5601:5601
+        volumes:
+            - type: bind
+              source: ./kibana/kibana.yml
+              target: /usr/share/kibana/config/kibana.yml
+              read_only: true
+        links:
+            - elasticsearch:elasticsearch
+        depends_on:
+          - elasticsearch
+        networks:
+          - elknetwork
+    logstash:
+        image: docker.elastic.co/logstash/logstash:7.9.2
+        container_name: logstash
+        hostname: logstash
+        ports:
+            - "5000:5000/tcp"
+            - "9600:9600"
+        volumes:
+            - type: bind
+              source: ./logstash/pipeline.yml
+              target: /usr/share/logstash/config/pipeline.yml
+            - type: bind
+              source: ./logstash/logstash.yml
+              target: /usr/share/logstash/config/logstash.yml
+            - type: bind
+              source: ./logstash/pipeline/
+              target: /usr/share/logstash/pipeline/
+              read_only: true
+            - ./logstash/worldcitiespop.csv:/usr/share/logstash/worldcitiespop.csv
+        links:
+            - elasticsearch:elasticsearch
+        environment:
+            LS_JAVA_OPTS: "-Xmx256m -Xms256m"
+        depends_on:
+          - elasticsearch
+        networks:
+          - elknetwork
+    app:
+        image: harisshafiq09/sample-app:latest
+        container_name: app
+        depends_on:
+          - logstash
+        command: /var/sample-app
+        ports:
+            - 8083:8083
+        logging:
+            driver: syslog
+            options:
+                syslog-address: "tcp://localhost:5000"
+        networks:
+          - elknetwork
+
+networks:
+    elknetwork:
+        driver: bridge
+
+volumes:
+  elasticsearch:

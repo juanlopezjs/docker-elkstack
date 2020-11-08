@@ -1,0 +1,4 @@
+#- pipeline.id: logstash
+#  path.config: "/usr/share/logstash/pipeline/logstash.conf"
+- pipeline.id: pipeline
+  path.config: "/usr/share/logstash/pipeline/pipeline.conf"
